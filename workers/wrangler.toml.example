@@ -1,0 +1,54 @@
+name = "onebooknav"
+main = "index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database configuration
+[[d1_databases]]
+binding = "DB"
+database_name = "onebooknav"
+database_id = "YOUR_DATABASE_ID_HERE"  # Replace with your D1 database ID
+
+# R2 Storage configuration (optional)
+# [[r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "onebooknav-assets"
+
+# Environment variables
+[vars]
+SITE_TITLE = "OneBookNav"
+AUTO_CREATE_ADMIN = "true"
+DEFAULT_ADMIN_USERNAME = "admin"
+DEFAULT_ADMIN_EMAIL = "admin@example.com"
+
+# Secrets (set with: wrangler secret put SECRET_NAME)
+# Run these commands:
+# wrangler secret put DEFAULT_ADMIN_PASSWORD
+# Set the password to: admin679 (default) or your custom password
+# wrangler secret put JWT_SECRET  # Optional, will be auto-generated if not set
+
+# Development environment
+[env.dev]
+name = "onebooknav-dev"
+
+[env.dev.vars]
+SITE_TITLE = "OneBookNav (Dev)"
+AUTO_CREATE_ADMIN = "true"
+
+# Production environment
+[env.production]
+name = "onebooknav-prod"
+
+[env.production.vars]
+SITE_TITLE = "OneBookNav"
+AUTO_CREATE_ADMIN = "false"  # Disable auto-creation in production
+
+# Worker routes (if using custom domain)
+# [[route]]
+# pattern = "bookmarks.example.com/*"
+# zone_name = "example.com"
+
+# Analytics (optional)
+# [analytics_engine_datasets]
+# binding = "ANALYTICS"
+# dataset = "onebooknav_analytics"
