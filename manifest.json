@@ -1,0 +1,17 @@
+{
+  "name": "OneBookNav",
+  "short_name": "OBN",
+  "description": "Personal bookmark management system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "icons": [],
+  "screenshots": [],
+  "shortcuts": []
+}

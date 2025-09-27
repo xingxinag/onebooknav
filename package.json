@@ -1,0 +1,74 @@
+{
+  "name": "onebooknav",
+  "version": "1.0.0",
+  "description": "Unified bookmark management system combining the best features from BookNav and OneNav",
+  "main": "index.php",
+  "scripts": {
+    "dev": "php -S localhost:8080",
+    "docker:build": "docker build -t onebooknav .",
+    "docker:run": "docker run -p 3080:80 onebooknav",
+    "docker:dev": "docker-compose --profile development up -d",
+    "docker:prod": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "workers:dev": "cd workers && wrangler dev",
+    "workers:deploy": "cd workers && wrangler deploy",
+    "workers:deploy:dev": "cd workers && wrangler deploy --env development",
+    "workers:deploy:prod": "cd workers && wrangler deploy --env production",
+    "workers:db:init": "cd workers && wrangler d1 execute onebooknav --file=../data/schema.sql",
+    "workers:logs": "cd workers && wrangler tail",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"Linting not configured\" && exit 0",
+    "format": "echo \"Formatting not configured\" && exit 0",
+    "backup": "php scripts/backup.php",
+    "migrate": "php scripts/migrate.php"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onebooknav/onebooknav.git"
+  },
+  "keywords": [
+    "bookmarks",
+    "navigation",
+    "bookmark-manager",
+    "personal-navigation",
+    "php",
+    "sqlite",
+    "mysql",
+    "docker",
+    "cloudflare-workers",
+    "pwa",
+    "responsive",
+    "self-hosted"
+  ],
+  "author": {
+    "name": "OneBookNav Team",
+    "email": "team@onebooknav.com",
+    "url": "https://onebooknav.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/onebooknav/onebooknav/issues"
+  },
+  "homepage": "https://github.com/onebooknav/onebooknav#readme",
+  "engines": {
+    "php": ">=7.4",
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@cloudflare/workers-types": "^4.0.0",
+    "wrangler": "^3.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/onebooknav"
+  }
+}
