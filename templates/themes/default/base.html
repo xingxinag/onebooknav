@@ -1,0 +1,85 @@
+{% extends "base/base.html" %}
+
+{% block theme_styles %}
+<link href="{{ url_for('static', filename='css/themes/default.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block body_class %}theme-default{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- 主内容区域 -->
+    <div class="row g-0">
+        <!-- 侧边栏 -->
+        {% if show_sidebar|default(true) %}
+        <div class="col-lg-3 col-xl-2">
+            {% block sidebar %}
+            <div class="sidebar bg-light border-end">
+                <div class="sidebar-header p-3 border-bottom">
+                    <h6 class="mb-0">
+                        <i class="fas fa-layer-group me-2"></i>分类导航
+                    </h6>
+                </div>
+                <div class="sidebar-content">
+                    {% if categories %}
+                    <div class="list-group list-group-flush">
+                        {% for category in categories %}
+                        <a href="{{ url_for('main.category_detail', category_id=category.id) }}"
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if category.icon %}
+                                <i class="{{ category.icon }} me-2"></i>
+                                {% endif %}
+                                {{ category.name }}
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ category.website_count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-muted text-center">
+                        <i class="fas fa-folder-open fa-2x mb-2"></i>
+                        <p>暂无分类</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endblock %}
+        </div>
+        {% endif %}
+
+        <!-- 主内容 -->
+        <div class="col-lg-9 col-xl-10">
+            <div class="main-wrapper">
+                <!-- 页面标题 -->
+                {% block page_header %}
+                {% if page_title %}
+                <div class="page-header bg-primary text-white py-3 mb-4">
+                    <div class="container">
+                        <h1 class="h3 mb-0">
+                            {% if page_icon %}<i class="{{ page_icon }} me-2"></i>{% endif %}
+                            {{ page_title }}
+                        </h1>
+                        {% if page_description %}
+                        <p class="mb-0 mt-1 opacity-75">{{ page_description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endblock %}
+
+                <!-- 页面内容 -->
+                {% block page_content %}
+                <div class="container">
+                    {% block inner_content %}{% endblock %}
+                </div>
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block theme_scripts %}
+<script src="{{ url_for('static', filename='js/themes/default.js') }}"></script>
+{% endblock %}

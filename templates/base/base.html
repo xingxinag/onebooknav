@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- 基础元数据 -->
+    <title>{% block title %}{{ site_settings.get('site_name', 'OneBookNav') }}{% endblock %}</title>
+    <meta name="description" content="{% block description %}{{ site_settings.get('site_description', '融合BookNav和OneNav优点的导航应用') }}{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}导航,书签,网址导航,OneBookNav{% endblock %}">
+    <meta name="author" content="OneBookNav Team">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ self.description() }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/logo.png', _external=True) }}{% endblock %}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ request.url }}">
+    <meta property="twitter:title" content="{{ self.og_title() }}">
+    <meta property="twitter:description" content="{{ self.og_description() }}">
+    <meta property="twitter:image" content="{{ self.og_image() }}">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+
+    <!-- 基础样式 -->
+    {% block base_styles %}
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
+    {% endblock %}
+
+    <!-- 主题样式 -->
+    {% block theme_styles %}{% endblock %}
+
+    <!-- 自定义样式 -->
+    {% block styles %}{% endblock %}
+
+    <!-- PWA支持 -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#007bff">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <!-- 页面加载指示器 -->
+    <div id="page-loader" class="page-loader">
+        <div class="loader-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+    </div>
+
+    <!-- 导航栏 -->
+    {% block navbar %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <!-- 品牌logo -->
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-bookmark me-2"></i>
+                {{ site_settings.get('site_name', 'OneBookNav') }}
+            </a>
+
+            <!-- 移动端菜单按钮 -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- 导航菜单 -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
+                            <i class="fas fa-home me-1"></i>首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.tags') }}">
+                            <i class="fas fa-tags me-1"></i>标签
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.stats') }}">
+                            <i class="fas fa-chart-bar me-1"></i>统计
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- 搜索框 -->
+                <form class="d-flex me-3" action="{{ url_for('main.search') }}" method="GET">
+                    <input class="form-control form-control-sm" type="search" name="q"
+                           placeholder="搜索网站..." value="{{ request.args.get('q', '') }}">
+                    <button class="btn btn-outline-light btn-sm ms-2" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+
+                <!-- 用户菜单 -->
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <img src="{{ current_user.get_avatar_url(24) }}" alt="头像" class="rounded-circle me-1" width="24" height="24">
+                            {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                <i class="fas fa-user me-2"></i>个人资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}">
+                                <i class="fas fa-cog me-2"></i>设置
+                            </a></li>
+                            {% if current_user.is_admin() %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>管理后台
+                            </a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i>登录
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">
+                            <i class="fas fa-user-plus me-1"></i>注册
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+
+    <!-- 主题切换器 -->
+    {% block theme_switcher %}
+    <div class="theme-switcher">
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-palette me-1"></i>主题
+            </button>
+            <ul class="dropdown-menu">
+                {% for theme_key, theme_info in available_themes.items() %}
+                <li>
+                    <a class="dropdown-item {% if current_theme == theme_key %}active{% endif %}"
+                       href="{{ url_for('main.switch_theme', theme_name=theme_key) }}">
+                        {{ theme_info.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endblock %}
+
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <!-- Flash消息 -->
+        {% block flash_messages %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="container mt-3">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% endblock %}
+
+        <!-- 页面内容 -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    {% block footer %}
+    <footer class="bg-dark text-light py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>{{ site_settings.get('site_name', 'OneBookNav') }}</h5>
+                    <p>{{ site_settings.get('site_description', '融合BookNav和OneNav优点的导航应用') }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>快速链接</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('main.about') }}" class="text-light">关于我们</a></li>
+                        <li><a href="{{ url_for('main.stats') }}" class="text-light">统计信息</a></li>
+                        <li><a href="{{ url_for('api.get_stats') }}" class="text-light">API文档</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p>&copy; 2023 OneBookNav. All rights reserved. Powered by Flask.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    {% endblock %}
+
+    <!-- 基础脚本 -->
+    {% block base_scripts %}
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 自定义脚本 -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    {% endblock %}
+
+    <!-- 主题脚本 -->
+    {% block theme_scripts %}{% endblock %}
+
+    <!-- 自定义脚本 -->
+    {% block scripts %}{% endblock %}
+
+    <!-- PWA服务工作者注册 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('{{ url_for("static", filename="sw.js") }}');
+        }
+    </script>
+</body>
+</html>

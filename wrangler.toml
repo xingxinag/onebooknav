@@ -1,0 +1,148 @@
+# Cloudflare Workers 配置文件
+# OneBookNav 边缘计算部署配置
+
+name = "onebooknav"
+compatibility_date = "2024-01-01"
+main = "worker/index.js"
+
+# Worker 类型和资源限制
+[env.production]
+workers_dev = false
+route = "nav.example.com/*"
+zone_id = ""  # 您的 Cloudflare Zone ID
+
+[env.staging]
+workers_dev = true
+route = "staging-nav.example.com/*"
+
+# 环境变量
+[vars]
+APP_ENV = "production"
+APP_VERSION = "1.0.0"
+CACHE_TTL = "3600"
+MAX_REQUESTS_PER_MINUTE = "100"
+
+# KV 存储命名空间 (用于数据存储)
+[[kv_namespaces]]
+binding = "ONEBOOKNAV_DATA"
+id = ""  # 生产环境 KV namespace ID
+preview_id = ""  # 预览环境 KV namespace ID
+
+[[kv_namespaces]]
+binding = "ONEBOOKNAV_CACHE"
+id = ""  # 缓存 KV namespace ID
+preview_id = ""  # 预览缓存 KV namespace ID
+
+[[kv_namespaces]]
+binding = "ONEBOOKNAV_SESSIONS"
+id = ""  # 会话存储 KV namespace ID
+preview_id = ""  # 预览会话存储 KV namespace ID
+
+# Durable Objects (用于实时功能)
+[[durable_objects.bindings]]
+name = "ONEBOOKNAV_STATE"
+class_name = "OneBookNavState"
+
+# R2 存储 (用于文件存储)
+[[r2_buckets]]
+binding = "ONEBOOKNAV_STORAGE"
+bucket_name = "onebooknav-files"
+preview_bucket_name = "onebooknav-files-preview"
+
+# D1 数据库 (Cloudflare 的 SQLite)
+[[d1_databases]]
+binding = "ONEBOOKNAV_DB"
+database_name = "onebooknav"
+database_id = ""  # D1 数据库 ID
+
+# 服务绑定 (用于微服务架构)
+[[services]]
+binding = "ONEBOOKNAV_API"
+service = "onebooknav-api"
+environment = "production"
+
+# 自定义域配置
+[env.production.route]
+pattern = "nav.example.com/*"
+custom_domain = true
+
+# Worker 配置
+[build]
+command = "npm run build:worker"
+cwd = "worker"
+upload_format = "service-worker"
+
+# 构建输出配置
+[build.upload]
+format = "service-worker"
+main = "./worker/dist/index.js"
+
+# 开发环境配置
+[env.development]
+workers_dev = true
+compatibility_date = "2024-01-01"
+
+[env.development.vars]
+APP_ENV = "development"
+APP_DEBUG = "true"
+
+# 生产环境特定配置
+[env.production.vars]
+APP_ENV = "production"
+APP_DEBUG = "false"
+CACHE_ENABLED = "true"
+
+# 触发器配置 (Cron Jobs)
+[[triggers.crons]]
+cron = "0 2 * * *"  # 每天凌晨2点执行备份
+name = "daily-backup"
+
+[[triggers.crons]]
+cron = "*/30 * * * *"  # 每30分钟检查一次死链
+name = "check-dead-links"
+
+[[triggers.crons]]
+cron = "0 0 * * 0"  # 每周日清理缓存
+name = "weekly-cleanup"
+
+# 安全配置
+[security]
+csrf_protection = true
+rate_limiting = true
+content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+# AI 功能配置 (Cloudflare AI)
+[[ai]]
+binding = "ONEBOOKNAV_AI"
+model = "@cf/meta/llama-3-8b-instruct"
+
+# WebSocket 支持 (Hibernatable WebSockets)
+[[websockets]]
+binding = "ONEBOOKNAV_WS"
+
+# 分析和监控
+[observability]
+enabled = true
+
+[observability.head_sampling]
+sampling_rate = 0.1
+
+# 资源限制
+[limits]
+cpu_ms = 10000
+memory_mb = 128
+
+# 部署配置
+[deployment]
+compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+logpush = true
+
+# 预览环境配置
+[env.preview]
+workers_dev = true
+compatibility_date = "2024-01-01"
+
+[env.preview.vars]
+APP_ENV = "preview"
+APP_DEBUG = "true"

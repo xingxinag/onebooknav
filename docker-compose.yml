@@ -1,0 +1,302 @@
+# OneBookNav Docker Compose 配置
+# 统一核心，多态适配 - Docker容器化部署
+# 支持完整的生产环境部署，包含Redis缓存、备份、监控等
+
+version: '3.8'
+
+services:
+  # OneBookNav 主应用服务
+  onebooknav:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: onebooknav:${APP_VERSION:-latest}
+    container_name: onebooknav_app
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./data:/var/www/html/data
+      - ./logs:/var/www/html/logs
+      - ./backups:/var/www/html/backups
+      - ./uploads:/var/www/html/public/assets/uploads
+      - ./themes:/var/www/html/themes
+      - ./config:/var/www/html/config
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - DB_CONNECTION=${DB_CONNECTION:-sqlite}
+      - DB_DATABASE=/var/www/html/data/database.db
+      - CACHE_DRIVER=${CACHE_DRIVER:-redis}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-onebooknav123}
+      - BACKUP_ENABLED=${BACKUP_ENABLED:-true}
+      - WEBDAV_ENABLED=${WEBDAV_ENABLED:-false}
+      - WEBDAV_URL=${WEBDAV_URL}
+      - WEBDAV_USERNAME=${WEBDAV_USERNAME}
+      - WEBDAV_PASSWORD=${WEBDAV_PASSWORD}
+      - AI_SEARCH_ENABLED=${AI_SEARCH_ENABLED:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - onebooknav_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.onebooknav.rule=Host(`${DOMAIN:-nav.localhost}`)"
+      - "traefik.http.services.onebooknav.loadbalancer.server.port=80"
+      - "traefik.http.routers.onebooknav-secure.rule=Host(`${DOMAIN:-nav.localhost}`)"
+      - "traefik.http.routers.onebooknav-secure.tls=true"
+
+  # Redis 缓存服务 - 高性能内存缓存
+  redis:
+    image: redis:7-alpine
+    container_name: onebooknav_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-onebooknav123}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --timeout 300
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/etc/redis/redis.conf:ro
+    networks:
+      - onebooknav_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-onebooknav123}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - redis
+
+  # Nginx 反向代理服务 - 高性能Web服务器
+  nginx:
+    image: nginx:alpine
+    container_name: onebooknav_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+      - ./public:/var/www/html/public:ro
+    depends_on:
+      onebooknav:
+        condition: service_healthy
+    networks:
+      - onebooknav_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - nginx
+
+  # MySQL 数据库服务（可选，支持大规模部署）
+  mysql:
+    image: mysql:8.0
+    container_name: onebooknav_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-onebooknav_root_123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-onebooknav}
+      MYSQL_USER: ${MYSQL_USER:-onebooknav}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-onebooknav_123}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/conf:/etc/mysql/conf.d:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=500
+    networks:
+      - onebooknav_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-onebooknav_root_123}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    profiles:
+      - mysql
+
+  # 自动备份服务 - 智能数据备份
+  backup:
+    image: alpine:latest
+    container_name: onebooknav_backup
+    restart: unless-stopped
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+    environment:
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-daily}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      - WEBDAV_ENABLED=${WEBDAV_ENABLED:-false}
+      - WEBDAV_URL=${WEBDAV_URL}
+      - WEBDAV_USERNAME=${WEBDAV_USERNAME}
+      - WEBDAV_PASSWORD=${WEBDAV_PASSWORD}
+    command: >
+      sh -c "
+        apk add --no-cache sqlite curl dcron &&
+        echo '0 2 * * * /scripts/backup.sh' | crontab - &&
+        chmod +x /scripts/backup.sh &&
+        crond -f -d 8
+      "
+    networks:
+      - onebooknav_network
+    profiles:
+      - backup
+
+  # 链接健康检查服务
+  healthcheck:
+    image: alpine:latest
+    container_name: onebooknav_healthcheck
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./scripts:/scripts:ro
+    environment:
+      - CHECK_INTERVAL=${DEAD_LINK_CHECK_INTERVAL:-7200}
+      - CHECK_TIMEOUT=${DEAD_LINK_CHECK_TIMEOUT:-10}
+    command: >
+      sh -c "
+        apk add --no-cache curl sqlite dcron &&
+        echo '0 */2 * * * /scripts/check_links.sh' | crontab - &&
+        chmod +x /scripts/check_links.sh &&
+        crond -f -d 8
+      "
+    networks:
+      - onebooknav_network
+    profiles:
+      - healthcheck
+
+  # 监控服务 - Prometheus + Grafana
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: onebooknav_prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
+    networks:
+      - onebooknav_network
+    profiles:
+      - monitoring
+
+  # Grafana 监控面板
+  grafana:
+    image: grafana/grafana:latest
+    container_name: onebooknav_grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - monitoring
+    networks:
+      - onebooknav_network
+    profiles:
+      - monitoring
+
+volumes:
+  # 数据持久化卷
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+
+  mysql_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mysql
+
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus
+
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana
+
+networks:
+  # OneBookNav 内部网络
+  onebooknav_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.name: onebooknav_br
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+
+# 预设配置文件
+x-common-variables: &common-variables
+  TZ: ${TIMEZONE:-Asia/Shanghai}
+  LANG: zh_CN.UTF-8
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
